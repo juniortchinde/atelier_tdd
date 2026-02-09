@@ -255,4 +255,26 @@ class CartTest {
         // Assert : 100 - 10% = 90
         assertEquals(new BigDecimal("90.00"), cart.getTotalAmount());
     }
+
+    @Test
+    @DisplayName("Impossible d'activer deux codes pour la même référence")
+    void testCannotActivateTwoCodesSameRef() {
+        cart.registerPromo("CODE1", "Pomme", 10);
+        cart.registerPromo("CODE2", "Pomme", 20);
+
+        cart.activatePromo("CODE1");
+        boolean result = cart.activatePromo("CODE2");
+
+        assertFalse(result, "Le deuxième code pour la même ref doit être refusé");
+    }
+
+    @Test
+    @DisplayName("Possible d'activer deux codes pour références différentes")
+    void testActivateTwoCodesDiffRef() {
+        cart.registerPromo("CODE_P", "Pomme", 10);
+        cart.registerPromo("CODE_O", "Orange", 10);
+
+        assertTrue(cart.activatePromo("CODE_P"));
+        assertTrue(cart.activatePromo("CODE_O"));
+    }
 }
