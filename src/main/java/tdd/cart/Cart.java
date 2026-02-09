@@ -1,6 +1,4 @@
 package tdd.cart;
-import tdd.cart.Product;
-
 import java.math.BigDecimal;
 import java.util.*;
 
@@ -98,4 +96,14 @@ public class Cart {
         return false;
     }
 
+
+    private static class Promotion {
+        String reference;
+        int percentage;
+
+        Promotion(String reference, int percentage) {
+            this.reference = reference;
+            this.percentage = percentage;
+        }
+    }
 }
