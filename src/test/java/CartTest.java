@@ -263,6 +263,7 @@ class CartTest {
         cart.registerPromo("CODE2", "Pomme", 20);
 
         cart.activatePromo("CODE1");
+
         boolean result = cart.activatePromo("CODE2");
 
         assertFalse(result, "Le deuxième code pour la même ref doit être refusé");
@@ -277,4 +278,6 @@ class CartTest {
         assertTrue(cart.activatePromo("CODE_P"));
         assertTrue(cart.activatePromo("CODE_O"));
     }
+
+
 }
