@@ -33,29 +33,27 @@ public class Cart {
         }
     }
 
-    /**
-     * Accesseur retournant le montant total du panier.
-     */
+
     public BigDecimal getTotalAmount() {
-        BigDecimal total = products.values().stream()
-                .map(Product::getTotalValue)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal total = BigDecimal.ZERO;
 
-        // Application des réductions
-        for (String code : activePromoCodes) {
-            Promotion promo = availablePromos.get(code);
-            if (products.containsKey(promo.reference)) {
-                Product product = products.get(promo.reference);
-                BigDecimal productTotal = product.getTotalValue();
-
-                // Calcul réduction : Valeur * (Percentage / 100)
-                BigDecimal discount = productTotal.multiply(BigDecimal.valueOf(promo.percentage))
-                        .divide(BigDecimal.valueOf(100));
-
-                total = total.subtract(discount);
-            }
+        for (Product product : products.values()) {
+            BigDecimal productValue = product.getTotalValue();
+            BigDecimal discount = calculateDiscountForReference(product.getReference(), productValue);
+            total = total.add(productValue.subtract(discount));
         }
         return total;
+    }
+
+    private BigDecimal calculateDiscountForReference(String reference, BigDecimal amount) {
+        // Cherche si une promo active concerne cette référence
+        return activePromoCodes.stream()
+                .map(availablePromos::get)
+                .filter(p -> p.reference.equals(reference))
+                .findFirst()
+                .map(p -> amount.multiply(BigDecimal.valueOf(p.percentage))
+                        .divide(BigDecimal.valueOf(100)))
+                .orElse(BigDecimal.ZERO);
     }
     /**
      * Accesseur retournant la quantité totale d'une référence donnée.
