@@ -45,6 +45,8 @@ public class Cart {
         return activePromoCodes.stream()
                 .map(availablePromos::get)
                 .filter(p -> p.reference.equals(reference))
+                // Nouvelle condition : Vérifier le seuil
+                .filter(p -> amount.compareTo(p.minPrice) >= 0)
                 .findFirst()
                 .map(p -> amount.multiply(BigDecimal.valueOf(p.percentage))
                         .divide(BigDecimal.valueOf(100)))
@@ -57,12 +59,10 @@ public class Cart {
     }
     
      // Accesseur retournant la quantité d'une référence pour un prix spécifique.
-     
     public int getQuantity(String reference, BigDecimal price) {
         return getProductOrThrow(reference).getQuantityAtPrice(price);
     }
 
-    
      // Accesseur retournant le montant total pour un couple référence/prix.
      
     public BigDecimal getSubTotal(String reference, BigDecimal price) {
@@ -76,7 +76,6 @@ public class Cart {
     }
 
      // Accesseur énumérant les prix unitaires pour une référence donnée.
-     
     public Set<BigDecimal> getPricesForReference(String reference) {
         return getProductOrThrow(reference).getPrices();
     }
@@ -92,7 +91,13 @@ public class Cart {
         if (code == null || code.isEmpty()) throw new IllegalArgumentException("Code vide");
         if (percentage <= 0 || percentage >= 100) throw new IllegalArgumentException("Pourcentage invalide");
         // On stocke simplement les infos
-        availablePromos.put(code, new Promotion(reference, percentage));
+        availablePromos.put(code, new Promotion(reference, percentage, BigDecimal.ZERO));
+    }
+
+    public void registerPromo(String code, String reference, int percentage, BigDecimal minPrice) {
+        if (code == null || code.isEmpty()) throw new IllegalArgumentException("Code vide");
+        // ... validations existantes ...
+        availablePromos.put(code, new Promotion(reference, percentage, minPrice));
     }
 
     public boolean activatePromo(String code) {
@@ -105,7 +110,6 @@ public class Cart {
                 .anyMatch(p -> p.reference.equals(newPromo.reference));
 
         if (alreadyDiscounted) return false;
-
         activePromoCodes.add(code);
         return true;
     }
@@ -113,10 +117,12 @@ public class Cart {
     private static class Promotion {
         String reference;
         int percentage;
+        BigDecimal minPrice;
 
-        Promotion(String reference, int percentage) {
+        Promotion(String reference, int percentage, BigDecimal minPrice) {
             this.reference = reference;
             this.percentage = percentage;
+            this.minPrice = minPrice;
         }
     }
 }
