@@ -243,4 +243,16 @@ class CartTest {
         assertThrows(IllegalArgumentException.class, () ->
                 cart.registerPromo("BAD", "Ref", 105));
     }
+   // calcul de la réduction
+    @Test
+    @DisplayName("Le code promo réduit le montant total")
+    void testPromoAppliedToTotal() {
+        // Arrange
+        cart.registerPromo("POMME10", "Pomme", 10); // 10% de réduction
+        cart.addItem("Pomme", new BigDecimal("100.00"), 1);
+        // Act
+        cart.activatePromo("POMME10");
+        // Assert : 100 - 10% = 90
+        assertEquals(new BigDecimal("90.00"), cart.getTotalAmount());
+    }
 }
