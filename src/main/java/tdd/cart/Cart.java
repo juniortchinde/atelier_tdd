@@ -7,6 +7,8 @@ import java.util.*;
 public class Cart {
 
     private final Map<String, Product> products;
+    private final Map<String, Promotion> availablePromos = new HashMap<>();
+    private final Set<String> activePromoCodes = new HashSet<>();
 
     public Cart() {
         this.products = new HashMap<>();
@@ -86,4 +88,12 @@ public class Cart {
     public boolean activatePromo(String code) {
         return false;
     }
+
+    public void registerPromo(String noel10, String pomme, int i) {
+
+    }
+
+
+    // Classe interne simple (DTO)
+
 }

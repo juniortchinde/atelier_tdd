@@ -229,4 +229,18 @@ class CartTest {
     void testActivateUnknownPromoReturnsFalse() {
         assertFalse(cart.activatePromo("UNKNOWN_CODE"));
     }
+
+    @Test
+    @DisplayName("L'activation d'un code enregistré retourne true")
+    void testActivateRegisteredPromo() {
+        cart.registerPromo("NOEL10", "Pomme", 10);
+        assertTrue(cart.activatePromo("NOEL10"));
+    }
+
+    @Test
+    @DisplayName("Erreur si pourcentage invalide")
+    void testRegisterInvalidPercentage() {
+        assertThrows(IllegalArgumentException.class, () ->
+                cart.registerPromo("BAD", "Ref", 105));
+    }
 }
