@@ -82,4 +82,8 @@ public class Cart {
         }
         return products.get(reference);
     }
+
+    public boolean activatePromo(String code) {
+        return false;
+    }
 }

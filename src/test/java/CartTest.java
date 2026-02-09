@@ -224,4 +224,9 @@ class CartTest {
             assertEquals(new BigDecimal("10.00"), cart.getSubTotal("Chips", new BigDecimal("2.50")));
         }
     }
+    @Test
+    @DisplayName("L'activation d'un code inconnu retourne false")
+    void testActivateUnknownPromoReturnsFalse() {
+        assertFalse(cart.activatePromo("UNKNOWN_CODE"));
+    }
 }
