@@ -279,5 +279,29 @@ class CartTest {
         assertTrue(cart.activatePromo("CODE_O"));
     }
 
+    @Test
+    @DisplayName("La promo ne s'applique pas si le seuil minimum n'est pas atteint")
+    void testPromoThresholdNotMet() {
+        // Promo de 10% sur Pomme si montant > 100€
+        cart.registerPromo("BIG10", "Pomme", 10, new BigDecimal("100.00"));
+        cart.addItem("Pomme", new BigDecimal("50.00"), 1);
+
+        cart.activatePromo("BIG10");
+
+        // Total devrait rester 50 (pas de réduction)
+        assertEquals(new BigDecimal("50.00"), cart.getTotalAmount());
+    }
+
+    @Test
+    @DisplayName("La promo s'applique si le seuil est dépassé")
+    void testPromoThresholdMet() {
+        cart.registerPromo("BIG10", "Pomme", 10, new BigDecimal("100.00"));
+        cart.addItem("Pomme", new BigDecimal("150.00"), 1); // > 100
+
+        cart.activatePromo("BIG10");
+
+        // 150 - 10% (15) = 135
+        assertEquals(new BigDecimal("135.00"), cart.getTotalAmount());
+    }
 
 }
