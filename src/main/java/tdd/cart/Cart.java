@@ -114,6 +114,8 @@ public class Cart {
         return true;
     }
 
+    public void registerBuyNGetOneFree(String code, String reference, int n){}
+
     private static class Promotion {
         String reference;
         int percentage;

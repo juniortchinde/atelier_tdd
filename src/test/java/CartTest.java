@@ -304,4 +304,29 @@ class CartTest {
         assertEquals(new BigDecimal("135.00"), cart.getTotalAmount());
     }
 
+    @Test
+    @DisplayName("Promo 'N achetés 1 offert' s'applique si quantité suffisante (N+1)")
+    void testBuyNGet1Free_SufficientQty() {
+        // "2 achetés 1 offert" => Il faut 3 articles pour déclencher.
+        // Prix : 10, 10, 10. Total sans promo = 30. Total avec promo = 20.
+        cart.registerBuyNGetOneFree("3POUR2", "Cahier", 2);
+        cart.addItem("Cahier", new BigDecimal("10.00"), 3);
+
+        cart.activatePromo("3POUR2");
+
+        assertEquals(new BigDecimal("20.00"), cart.getTotalAmount());
+    }
+
+    @Test
+    @DisplayName("Promo 'N achetés 1 offert' ne fait rien si quantité insuffisante")
+    void testBuyNGet1Free_InsufficientQty() {
+        // "2 achetés 1 offert". On en a que 2. On paie les 2.
+        cart.registerBuyNGetOneFree("3POUR2", "Cahier", 2);
+        cart.addItem("Cahier", new BigDecimal("10.00"), 2);
+
+        cart.activatePromo("3POUR2");
+
+        assertEquals(new BigDecimal("20.00"), cart.getTotalAmount());
+    }
+
 }
