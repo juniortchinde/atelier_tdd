@@ -76,8 +76,6 @@ public class Cart {
         return getProductOrThrow(reference).getPrices();
     }
 
-    // --- Helper Privé ---
-
     private Product getProductOrThrow(String reference) {
         if (reference == null || !products.containsKey(reference)) {
             throw new IllegalArgumentException("Erreur : La référence '" + reference + "' n'est pas dans le panier.");
@@ -85,15 +83,19 @@ public class Cart {
         return products.get(reference);
     }
 
+    public void registerPromo(String code, String reference, int percentage) {
+        if (code == null || code.isEmpty()) throw new IllegalArgumentException("Code vide");
+        if (percentage <= 0 || percentage >= 100) throw new IllegalArgumentException("Pourcentage invalide");
+        // On stocke simplement les infos
+        availablePromos.put(code, new Promotion(reference, percentage));
+    }
+
     public boolean activatePromo(String code) {
+        if (availablePromos.containsKey(code)) {
+            activePromoCodes.add(code);
+            return true;
+        }
         return false;
     }
-
-    public void registerPromo(String noel10, String pomme, int i) {
-
-    }
-
-
-    // Classe interne simple (DTO)
 
 }
