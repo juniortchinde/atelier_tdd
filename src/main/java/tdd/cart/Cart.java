@@ -3,6 +3,7 @@ import java.math.BigDecimal;
 import java.util.*;
 
 public class Cart {
+    private enum PromoType { PERCENTAGE, BUY_N_GET_1 }
 
     private final Map<String, Product> products;
     private final Map<String, Promotion> availablePromos = new HashMap<>();
@@ -40,16 +41,16 @@ public class Cart {
         return total;
     }
 
-    private BigDecimal calculateDiscountForReference(String reference, BigDecimal amount) {
-        // Cherche si une promo active concerne cette référence
+    // Mise à jour du calcul
+    private BigDecimal calculateDiscountForReference(String reference, BigDecimal productTotal) {
+        Product product = products.get(reference);
+
+        // On cherche la promo active
         return activePromoCodes.stream()
                 .map(availablePromos::get)
                 .filter(p -> p.reference.equals(reference))
-                // Nouvelle condition : Vérifier le seuil
-                .filter(p -> amount.compareTo(p.minPrice) >= 0)
                 .findFirst()
-                .map(p -> amount.multiply(BigDecimal.valueOf(p.percentage))
-                        .divide(BigDecimal.valueOf(100)))
+                .map(p -> applyPromotion(p, product, productTotal))
                 .orElse(BigDecimal.ZERO);
     }
     
@@ -114,17 +115,51 @@ public class Cart {
         return true;
     }
 
-    public void registerBuyNGetOneFree(String code, String reference, int n){}
+    public void registerBuyNGetOneFree(String code, String reference, int n) {
+        if (code == null || code.isEmpty()) throw new IllegalArgumentException("Code vide");
+        if (n <= 0) throw new IllegalArgumentException("N doit être positif");
+        availablePromos.put(code, new Promotion(reference, n));
+    }
+
+
+    private BigDecimal applyPromotion(Promotion p, Product product, BigDecimal totalAmount) {
+        if (p.type == PromoType.PERCENTAGE) {
+            if (totalAmount.compareTo(p.minPrice) < 0) return BigDecimal.ZERO;
+            return totalAmount.multiply(BigDecimal.valueOf(p.value))
+                    .divide(BigDecimal.valueOf(100));
+        }
+        else if (p.type == PromoType.BUY_N_GET_1) {
+            int totalQty = product.getTotalQuantity();
+            // Formule : Pour chaque lot de (N+1), 1 est offert.
+            // Ex: 2 achetés 1 offert (N=2). Pack de 3.
+            int packSize = p.value + 1;
+            int freeItemsCount = totalQty / packSize;
+
+            return product.getCheapestItemsValue(freeItemsCount);
+        }
+        return BigDecimal.ZERO;
+    }
 
     private static class Promotion {
         String reference;
-        int percentage;
-        BigDecimal minPrice;
+        PromoType type;
+        int value; // Sert pour % ou pour N
+        BigDecimal minPrice; // Optionnel
 
+        // Constructeur existant (% promo)
         Promotion(String reference, int percentage, BigDecimal minPrice) {
             this.reference = reference;
-            this.percentage = percentage;
+            this.type = PromoType.PERCENTAGE;
+            this.value = percentage;
             this.minPrice = minPrice;
+        }
+
+        // Nouveau constructeur (BNG1 promo)
+        Promotion(String reference, int buyN) {
+            this.reference = reference;
+            this.type = PromoType.BUY_N_GET_1;
+            this.value = buyN;
+            this.minPrice = BigDecimal.ZERO;
         }
     }
 }

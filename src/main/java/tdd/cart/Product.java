@@ -99,4 +99,25 @@ public class Product {
             throw new IllegalArgumentException("Erreur : La quantité doit être positive.");
         }
     }
+
+    public BigDecimal getCheapestItemsValue(int countToDeduct) {
+        if (countToDeduct <= 0) return BigDecimal.ZERO;
+
+        BigDecimal deduction = BigDecimal.ZERO;
+        int remainingToDeduct = countToDeduct;
+        Map<BigDecimal, Integer> cheapestFirst = priceBatches.descendingMap();
+
+        for (Map.Entry<BigDecimal, Integer> entry : cheapestFirst.entrySet()) {
+            BigDecimal price = entry.getKey();
+            int qtyAtThisPrice = entry.getValue();
+
+            int qtyTaken = Math.min(remainingToDeduct, qtyAtThisPrice);
+
+            deduction = deduction.add(price.multiply(BigDecimal.valueOf(qtyTaken)));
+            remainingToDeduct -= qtyTaken;
+
+            if (remainingToDeduct == 0) break;
+        }
+        return deduction;
+    }
 }
