@@ -3,11 +3,15 @@ package tdd.cart;
 import java.math.BigDecimal;
 import java.util.*;
 
+/**
+ * Classe représentant un panier d'achat.
+ * Respecte les conventions Java (CamelCase, Getters, encapsulation).
+ */
 public class Cart {
 
-    // Structure : Map<Référence, TreeMap<Prix, Quantité>>
-    // TreeMap est configuré en ordre inverse (reverseOrder) pour faciliter le retrait "des plus coûteux".
-    private final Map<String, TreeMap<BigDecimal, Integer>> items;
+    // Structure : Reference -> (Prix -> Quantité)
+    // On utilise une NavigableMap avec un comparateur inversé pour trier les prix du plus cher au moins cher.
+    private final Map<String, NavigableMap<BigDecimal, Integer>> items;
 
     /**
      * Constructeur : Initialisation d'un panier vide.
@@ -17,126 +21,175 @@ public class Cart {
     }
 
     /**
-     * Ajout d'une quantité d'une référence produit à un prix spécifié.
-     * Gestion sans doublon pour le couple référence/prix (on cumule la quantité).
+     * Ajoute une quantité d'une référence produit à un prix spécifié.
+     *
+     * @param reference La référence du produit (non vide).
+     * @param price     Le prix unitaire (positif non nul).
+     * @param quantity  La quantité à ajouter (entier positif non nul).
+     * @throws IllegalArgumentException Si les entrées sont invalides.
      */
-    public void addProduct(String reference, BigDecimal price, int quantity) {
-        if (reference == null || reference.isEmpty()) {
-            throw new IllegalArgumentException("La référence ne peut pas être vide.");
-        }
-        if (price == null || price.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Le prix doit être positif et non nul.");
-        }
-        if (quantity <= 0) {
-            throw new IllegalArgumentException("La quantité doit être un entier positif non nul.");
-        }
+    public void addItem(String reference, BigDecimal price, int quantity) {
+        validateReference(reference);
+        validatePrice(price);
+        validateQuantity(quantity);
 
-        // Récupère ou crée la map des prix pour cette référence
-        // On utilise reverseOrder pour trier les prix du plus haut au plus bas
-        items.putIfAbsent(reference, new TreeMap<>(Collections.reverseOrder()));
-        Map<BigDecimal, Integer> priceMap = items.get(reference);
-
-        // Ajoute la quantité existante à la nouvelle quantité
-        int currentQuantity = priceMap.getOrDefault(price, 0);
-        priceMap.put(price, currentQuantity + quantity);
+        // Récupère ou crée la map des prix pour cette référence, triée par ordre décroissant
+        items.computeIfAbsent(reference, k -> new TreeMap<>(Comparator.reverseOrder()))
+                .merge(price, quantity, Integer::sum);
     }
 
     /**
-     * Retrait d'une quantité donnée d'une référence, en partant des plus coûteux.
+     * Retire une quantité donnée d'une référence, en commençant par les articles les plus coûteux.
+     *
+     * @param reference La référence du produit.
+     * @param quantityToRemove La quantité à retirer (entier positif non nul).
+     * @throws IllegalArgumentException Si la référence n'existe pas, si la quantité est invalide
+     * ou si l'on tente de retirer plus que la quantité totale disponible.
      */
-    public void removeProduct(String reference, int quantityToRemove) {
-        if (reference == null || !items.containsKey(reference)) return; // Rien à faire si la ref n'existe pas
-        if (quantityToRemove <= 0) return;
+    public void removeItem(String reference, int quantityToRemove) {
+        validateReference(reference);
+        validateQuantity(quantityToRemove);
 
-        TreeMap<BigDecimal, Integer> priceMap = items.get(reference);
+        if (!items.containsKey(reference)) {
+            throw new IllegalArgumentException("Erreur : La référence '" + reference + "' n'est pas dans le panier.");
+        }
 
-        // Itérateur sur les clés (Prix) - L'ordre est décroissant grâce au TreeMap inversé
+        NavigableMap<BigDecimal, Integer> priceMap = items.get(reference);
+        int totalAvailable = priceMap.values().stream().mapToInt(Integer::intValue).sum();
+
+        if (quantityToRemove > totalAvailable) {
+            throw new IllegalArgumentException("Erreur : Tentative de retrait supérieure à la quantité disponible (" + totalAvailable + ").");
+        }
+
+        // Itération sur les prix (du plus cher au moins cher grâce au TreeMap inversé)
         Iterator<Map.Entry<BigDecimal, Integer>> iterator = priceMap.entrySet().iterator();
 
-        while (iterator.hasNext() && quantityToRemove > 0) {
+        while (quantityToRemove > 0 && iterator.hasNext()) {
             Map.Entry<BigDecimal, Integer> entry = iterator.next();
             int currentQty = entry.getValue();
 
             if (currentQty <= quantityToRemove) {
-                // On retire toute la ligne de ce prix
+                // On retire toute la ligne pour ce prix
                 quantityToRemove -= currentQty;
-                iterator.remove(); // Suppression sûre via l'itérateur
+                iterator.remove();
             } else {
-                // On retire seulement une partie
+                // On réduit la quantité pour ce prix
                 entry.setValue(currentQty - quantityToRemove);
                 quantityToRemove = 0;
             }
         }
 
-        // Si la référence n'a plus aucun produit (tous prix confondus), on nettoie la map principale
+        // Nettoyage : si la référence n'a plus aucun article, on supprime la clé principale
         if (priceMap.isEmpty()) {
             items.remove(reference);
         }
     }
 
     /**
-     * Accesseur retournant le montant total du panier.
+     * Retourne le montant total du panier.
+     *
+     * @return Le montant total (BigDecimal).
      */
     public BigDecimal getTotalAmount() {
-        BigDecimal total = BigDecimal.ZERO;
-
-        for (Map<BigDecimal, Integer> priceMap : items.values()) {
-            for (Map.Entry<BigDecimal, Integer> entry : priceMap.entrySet()) {
-                BigDecimal price = entry.getKey();
-                BigDecimal qty = BigDecimal.valueOf(entry.getValue());
-                total = total.add(price.multiply(qty));
-            }
-        }
-        return total;
+        return items.values().stream()
+                .flatMap(map -> map.entrySet().stream())
+                .map(entry -> entry.getKey().multiply(BigDecimal.valueOf(entry.getValue())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     /**
-     * Accesseur énumérant les références présentes dans le panier sans doublon.
+     * Énumère les références présentes dans le panier sans doublon.
+     *
+     * @return Un ensemble (Set) des références.
      */
     public Set<String> getReferences() {
         return new HashSet<>(items.keySet());
     }
 
     /**
-     * Accesseur énumérant les prix unitaires pour une référence donnée.
+     * Énumère les prix unitaires pour une référence donnée.
+     *
+     * @param reference La référence du produit.
+     * @return Un ensemble des prix existants pour cette référence.
+     * @throws IllegalArgumentException Si la référence n'existe pas.
      */
     public Set<BigDecimal> getPricesForReference(String reference) {
+        validateReference(reference);
         if (!items.containsKey(reference)) {
-            return Collections.emptySet();
+            throw new IllegalArgumentException("Erreur : Référence inconnue.");
         }
-        return items.get(reference).keySet();
+        return new HashSet<>(items.get(reference).keySet());
     }
 
     /**
-     * Accesseur retournant la quantité totale d'une référence donnée.
+     * Retourne la quantité totale d'une référence donnée (tous prix confondus).
+     *
+     * @param reference La référence du produit.
+     * @return La quantité totale.
+     * @throws IllegalArgumentException Si la référence n'existe pas.
      */
     public int getQuantity(String reference) {
-        if (!items.containsKey(reference)) return 0;
-
-        return items.get(reference).values().stream()
-                .mapToInt(Integer::intValue)
-                .sum();
+        validateReference(reference);
+        if (!items.containsKey(reference)) {
+            throw new IllegalArgumentException("Erreur : Référence inconnue.");
+        }
+        return items.get(reference).values().stream().mapToInt(Integer::intValue).sum();
     }
 
     /**
-     * Surcharge : Si le prix est spécifié, seule la quantité pour ce prix est retournée.
+     * Surcharge : Retourne la quantité pour une référence à un prix spécifique.
+     *
+     * @param reference La référence du produit.
+     * @param price Le prix spécifique.
+     * @return La quantité pour ce couple référence/prix.
+     * @throws IllegalArgumentException Si la référence ou le couple référence/prix n'existe pas.
      */
     public int getQuantity(String reference, BigDecimal price) {
-        if (!items.containsKey(reference)) return 0;
-        return items.get(reference).getOrDefault(price, 0);
+        validateReference(reference);
+        validatePrice(price);
+
+        if (!items.containsKey(reference)) {
+            throw new IllegalArgumentException("Erreur : Référence inconnue.");
+        }
+
+        Integer qty = items.get(reference).get(price);
+        if (qty == null) {
+            throw new IllegalArgumentException("Erreur : Aucun article de cette référence à ce prix.");
+        }
+
+        return qty;
     }
 
     /**
-     * Accesseur retournant le montant total pour un couple référence/prix existant.
+     * Retourne le montant total pour un couple référence/prix existant.
+     *
+     * @param reference La référence du produit.
+     * @param price Le prix unitaire.
+     * @return Le sous-total (Prix * Quantité).
+     * @throws IllegalArgumentException Si le couple n'existe pas.
      */
     public BigDecimal getSubTotal(String reference, BigDecimal price) {
-        int qty = getQuantity(reference, price);
-        if (qty == 0) return BigDecimal.ZERO;
-
+        int qty = getQuantity(reference, price); // La validation se fait dans getQuantity
         return price.multiply(BigDecimal.valueOf(qty));
     }
 
-    public Map<String, TreeMap<BigDecimal, Integer>>getItems() {
-        return items;
+    // --- Méthodes privées de validation ---
+
+    private void validateReference(String reference) {
+        if (reference == null || reference.trim().isEmpty()) {
+            throw new IllegalArgumentException("Erreur : La référence ne peut pas être vide.");
+        }
+    }
+
+    private void validatePrice(BigDecimal price) {
+        if (price == null || price.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Erreur : Le prix doit être strictement positif.");
+        }
+    }
+
+    private void validateQuantity(int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Erreur : La quantité doit être un entier positif non nul.");
+        }
     }
 }
