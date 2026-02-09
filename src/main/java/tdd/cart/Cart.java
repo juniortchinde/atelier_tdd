@@ -37,9 +37,25 @@ public class Cart {
      * Accesseur retournant le montant total du panier.
      */
     public BigDecimal getTotalAmount() {
-        return products.values().stream()
+        BigDecimal total = products.values().stream()
                 .map(Product::getTotalValue)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Application des réductions
+        for (String code : activePromoCodes) {
+            Promotion promo = availablePromos.get(code);
+            if (products.containsKey(promo.reference)) {
+                Product product = products.get(promo.reference);
+                BigDecimal productTotal = product.getTotalValue();
+
+                // Calcul réduction : Valeur * (Percentage / 100)
+                BigDecimal discount = productTotal.multiply(BigDecimal.valueOf(promo.percentage))
+                        .divide(BigDecimal.valueOf(100));
+
+                total = total.subtract(discount);
+            }
+        }
+        return total;
     }
     /**
      * Accesseur retournant la quantité totale d'une référence donnée.
