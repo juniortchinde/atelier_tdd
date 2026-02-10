@@ -340,10 +340,6 @@ class CartTest {
         cart.addItem("Mix", new BigDecimal("50.00"), 1);
         cart.addItem("Mix", new BigDecimal("10.00"), 1);
 
-        // Total sans promo : 160.
-        // Avec promo : On a 3 articles. 1 gratuit. Le moins cher est 10.
-        // Total attendu : 150.
-
         cart.activatePromo("PROMO_MIX");
 
         assertEquals(new BigDecimal("150.00"), cart.getTotalAmount());
@@ -354,16 +350,26 @@ class CartTest {
     void testBuyNGet1Free_MultipleFreeItems() {
         // "1 acheté 1 offert" (N=1). Pack de 2.
         cart.registerBuyNGetOneFree("1POUR1", "Bonbon", 1);
-
-        // 2 articles à 10€, 2 articles à 20€. Total 4 articles.
-        // 2 gratuits. Les 2 gratuits doivent être les deux à 10€.
-        // Total attendu : 20 + 20 + 0 + 0 = 40.
         cart.addItem("Bonbon", new BigDecimal("10.00"), 2);
         cart.addItem("Bonbon", new BigDecimal("20.00"), 2);
 
         cart.activatePromo("1POUR1");
 
         assertEquals(new BigDecimal("40.00"), cart.getTotalAmount());
+    }
+
+    @Test
+    @DisplayName("Cumul : BuyNGet1 s'applique d'abord, puis le pourcentage sur le reste")
+    void testCumulativePromos() {
+        // Promo 1 : 2 achetés 1 offert (N=2)
+        cart.registerBuyNGetOneFree("B2G1", "Livre", 2);
+        // Promo 2 : 10% de réduction
+        cart.registerPromo("NOEL10", "Livre", 10);
+        cart.addItem("Livre", new BigDecimal("100.00"), 3);
+
+        assertTrue(cart.activatePromo("B2G1"));
+        assertTrue(cart.activatePromo("NOEL10")); // Doit retourner true maintenant !
+        assertEquals(new BigDecimal("180.00"), cart.getTotalAmount());
     }
 
 }
