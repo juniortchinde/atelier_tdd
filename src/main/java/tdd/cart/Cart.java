@@ -32,13 +32,49 @@ public class Cart {
 
     public BigDecimal getTotalAmount() {
         BigDecimal total = BigDecimal.ZERO;
-
         for (Product product : products.values()) {
-            BigDecimal productValue = product.getTotalValue();
-            BigDecimal discount = calculateDiscountForReference(product.getReference(), productValue);
-            total = total.add(productValue.subtract(discount));
+            total = total.add(calculateProductNetPrice(product));
         }
         return total;
+    }
+
+    private BigDecimal calculateProductNetPrice(Product product) {
+        String ref = product.getReference();
+        BigDecimal netAmount = product.getTotalValue();
+
+        // Récupérer les promos actives pour ce produit
+        List<Promotion> promos = activePromoCodes.stream()
+                .map(availablePromos::get)
+                .filter(p -> p.reference.equals(ref))
+                .toList();
+
+        // Étape 1 : Appliquer d'abord les gratuits (Buy N Get 1)
+        // Cela réduit la base imposable
+        for (Promotion p : promos) {
+            if (p.type == PromoType.BUY_N_GET_1) {
+                int totalQty = product.getTotalQuantity();
+                int packSize = p.value + 1;
+                int freeItemsCount = totalQty / packSize;
+                BigDecimal discountBNG = product.getCheapestItemsValue(freeItemsCount);
+                netAmount = netAmount.subtract(discountBNG);
+            }
+        }
+
+        // Étape 2 : Appliquer les pourcentages sur le montant RESTANT
+        for (Promotion p : promos) {
+            if (p.type == PromoType.PERCENTAGE) {
+                // Vérif seuil minPrice sur le montant net actuel (ou brut ? souvent brut, mais restons logique)
+                // Le prompt disait "prix minimum auquel s'applique la réduction".
+                // Si on a payé 200€ (après gratuité), c'est ce montant qu'on compare au seuil.
+                if (netAmount.compareTo(p.minPrice) >= 0) {
+                    BigDecimal discountPct = netAmount.multiply(BigDecimal.valueOf(p.value))
+                            .divide(BigDecimal.valueOf(100));
+                    netAmount = netAmount.subtract(discountPct);
+                }
+            }
+        }
+
+        return netAmount; // Ne peut pas être négatif
     }
 
     // Mise à jour du calcul
@@ -103,14 +139,17 @@ public class Cart {
 
     public boolean activatePromo(String code) {
         if (!availablePromos.containsKey(code)) return false;
-
         Promotion newPromo = availablePromos.get(code);
-        // Vérifier si une promo active cible déjà la même référence
-        boolean alreadyDiscounted = activePromoCodes.stream()
+        // Vérification de compatibilité
+        boolean incompatible = activePromoCodes.stream()
                 .map(availablePromos::get)
-                .anyMatch(p -> p.reference.equals(newPromo.reference));
+                .filter(p -> p.reference.equals(newPromo.reference))
+                // On rejette SI c'est le même type de promo
+                // (On suppose qu'on ne peut pas cumuler deux pourcentages, ni deux BNG1)
+                .anyMatch(p -> p.type == newPromo.type);
 
-        if (alreadyDiscounted) return false;
+        if (incompatible) return false;
+
         activePromoCodes.add(code);
         return true;
     }
