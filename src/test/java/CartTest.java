@@ -329,4 +329,41 @@ class CartTest {
         assertEquals(new BigDecimal("20.00"), cart.getTotalAmount());
     }
 
+    @Test
+    @DisplayName("L'article offert est strictement le moins cher du lot")
+    void testBuyNGet1Free_CheapestIsFree() {
+        // "2 achetés 1 offert"
+        cart.registerBuyNGetOneFree("PROMO_MIX", "Mix", 2);
+
+        // Ajout : 1 cher (100), 1 moyen (50), 1 pas cher (10)
+        cart.addItem("Mix", new BigDecimal("100.00"), 1);
+        cart.addItem("Mix", new BigDecimal("50.00"), 1);
+        cart.addItem("Mix", new BigDecimal("10.00"), 1);
+
+        // Total sans promo : 160.
+        // Avec promo : On a 3 articles. 1 gratuit. Le moins cher est 10.
+        // Total attendu : 150.
+
+        cart.activatePromo("PROMO_MIX");
+
+        assertEquals(new BigDecimal("150.00"), cart.getTotalAmount());
+    }
+
+    @Test
+    @DisplayName("Gestion des grandes quantités (plusieurs offerts)")
+    void testBuyNGet1Free_MultipleFreeItems() {
+        // "1 acheté 1 offert" (N=1). Pack de 2.
+        cart.registerBuyNGetOneFree("1POUR1", "Bonbon", 1);
+
+        // 2 articles à 10€, 2 articles à 20€. Total 4 articles.
+        // 2 gratuits. Les 2 gratuits doivent être les deux à 10€.
+        // Total attendu : 20 + 20 + 0 + 0 = 40.
+        cart.addItem("Bonbon", new BigDecimal("10.00"), 2);
+        cart.addItem("Bonbon", new BigDecimal("20.00"), 2);
+
+        cart.activatePromo("1POUR1");
+
+        assertEquals(new BigDecimal("40.00"), cart.getTotalAmount());
+    }
+
 }
